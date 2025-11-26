@@ -1,0 +1,135 @@
+Az alábbi kód egy **Leaflet térképes alkalmazás**, amelyben a felhasználó két pontra kattinthat a térképen, és a rendszer kirajzolja a köztük vezető autós útvonalat az **OSRM** (Open Source Routing Machine) segítségével.
+Az alábbiakban részekre bontva magyarázom el.
+
+---
+
+#  **1. Térkép inicializálása**
+
+```js
+const map = L.map('map').setView([47.4979, 19.0402], 13); // Budapest
+```
+
+* Létrehoz egy Leaflet térképet a `div id="map"` elemben.
+* A nézet középpontja: Budapest koordinátái.
+* Kezdő zoom: 13.
+
+```js
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap',
+}).addTo(map);
+```
+
+* Betölti az OpenStreetMap csempéit a térképre.
+
+---
+
+#  **2. Marker és útvonal változók**
+
+```js
+let startMarker = null;
+let endMarker = null;
+let routeLine = null;
+```
+
+* `startMarker`: az első kattintás helyét jelző ikon.
+* `endMarker`: a második kattintásnál létrejövő célpont.
+* `routeLine`: a kirajzolt útvonal (polyline).
+
+---
+
+#  **3. Kattintás esemény kezelése**
+
+```js
+map.on('click', async (e) => {
+    if (!startMarker) {
+        // 1. kattintás – start
+        startMarker = L.marker(e.latlng).addTo(map).bindPopup("Start").openPopup();
+    } else if (!endMarker) {
+        // 2. kattintás – cél
+        endMarker = L.marker(e.latlng).addTo(map).bindPopup("Cél").openPopup();
+        drawRoute();
+    } else {
+        // 3. kattintás – mindent töröl, újrakezd
+        map.removeLayer(startMarker);
+        map.removeLayer(endMarker);
+        if (routeLine) map.removeLayer(routeLine);
+        startMarker = endMarker = routeLine = null;
+    }
+});
+```
+
+### Mit csinál?
+
+1. **Első kattintás:** létrejön a start marker.
+2. **Második kattintás:** létrejön a cél marker és meghívja a `drawRoute()` függvényt.
+3. **Harmadik kattintás:** törli a korábbi markereket és az útvonalat → újrakezdés.
+
+---
+
+#  **4. Útvonal lekérése OSRM-től**
+
+```js
+async function drawRoute() {
+    const s = startMarker.getLatLng();
+    const e = endMarker.getLatLng();
+```
+
+* Lekéri a kezdő és végpont koordinátáit.
+
+### URL összeállítása az OSRM API-hoz
+
+```js
+const url = `https://router.project-osrm.org/route/v1/driving/${s.lng},${s.lat};${e.lng},${e.lat}?overview=full&geometries=geojson`;
+```
+
+Fontos: OSRM **lng,lat** sorrendet vár, nem lat,lng-et.
+
+---
+
+### API hívás
+
+```js
+const res = await fetch(url);
+const data = await res.json();
+```
+
+---
+
+### GeoJSON koordináták átalakítása
+
+```js
+const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+```
+
+OSRM is **[hosszúság, szélesség]** formátumban adja az adatot,
+Leaflet viszont **[szélesség, hosszúság]** formátumot használ, ezért a sorrendet fel kell cserélni.
+
+---
+
+### Útvonal kirajzolása
+
+```js
+routeLine = L.polyline(coords, { color: 'blue', weight: 5 }).addTo(map);
+map.fitBounds(routeLine.getBounds());
+```
+
+* A `coords` alapján létrejön egy kék vonal.
+* `fitBounds`: a térkép ránagyít úgy, hogy az egész útvonal látható legyen.
+
+---
+
+#  **Összefoglalás**
+
+A kód működése röviden:
+
+1. Megjelenít egy Leaflet térképet Budapestre fókuszálva.
+2. A felhasználó első kattintásra beállít egy **kezdőpontot**.
+3. Második kattintásra beállít egy **célt**, majd:
+
+   * lekéri a két pont közti autós útvonalat az OSRM API-ból,
+   * kirajzolja az útvonalat a térképre.
+4. Harmadik kattintásra minden törlődik, és a folyamat elölről kezdhető.
+
+---
+
+Ha szeretnéd, át is alakíthatom a kódot (pl. waypointok, drag&drop marker, útvonal hossza/ideje megjelenés stb.).

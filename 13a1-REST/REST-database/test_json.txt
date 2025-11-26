@@ -1,0 +1,9 @@
+{
+  "firstName": "Mekk",
+  "lastName": "Elek",
+  "city": "Ökörítófülpös",
+  "address": "Kesthelyi út 110.",
+  "phone": "36(10)986-5432",
+  "email": "mekk.elek@google.hu",
+  "gender": "Férfi"
+}

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <title>Leaflet + OSRM útvonaltervező címmel</title>
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #topbar {
+            padding: 10px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ccc;
+        }
+
+        #map {
+            height: calc(100vh - 120px);
+            width: 100%;
+        }
+
+        input {
+            padding: 5px;
+            width: 250px;
+        }
+
+        button {
+            padding: 6px 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="topbar">
+    <b>Kezdőpont:</b>
+    <input id="startInput" placeholder="Település, utca, házszám">
+    <button onclick="setAddress(true)">Beállít</button>
+
+    &nbsp;&nbsp;&nbsp;
+
+    <b>Végpont:</b>
+    <input id="endInput" placeholder="Település, utca, házszám">
+    <button onclick="setAddress(false)">Beállít</button>
+
+    <div id="info" style="margin-top:5px;">
+        Kattints a térképre waypoint hozzáadásához.
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    // --- TÉRKÉP ---
+    const map = L.map('map').setView([47.4979, 19.0402], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Waypoint lista
+    let markers = [];
+    let routeLine = null;
+
+    // --- 1) Cím beállítása geokódolással ---
+    async function setAddress(isStart) {
+        const input = isStart ? document.getElementById("startInput") : document.getElementById("endInput");
+        const address = input.value.trim();
+        if (!address) return;
+
+        const coords = await geocode(address);
+        if (!coords) {
+            alert("A cím nem található!");
+            return;
+        }
+
+        // Ha start/end szerepel már, cseréljük
+        if (isStart) {
+            if (markers[0]) map.removeLayer(markers[0]);
+            markers[0] = createWaypoint(coords);
+        } else {
+            if (markers[1]) map.removeLayer(markers[1]);
+            markers[1] = createWaypoint(coords);
+        }
+
+        drawRoute();
+    }
+
+    // --- 2) Nominatim geokódolás ---
+    async function geocode(address) {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data || !data.length) return null;
+
+        return {
+            lat: parseFloat(data[0].lat),
+            lng: parseFloat(data[0].lon)
+        };
+    }
+
+    // --- 3) Waypoint létrehozása ---
+    function createWaypoint(latlng) {
+        const marker = L.marker(latlng, { draggable: true }).addTo(map);
+
+        marker.on('dragend', drawRoute);
+
+        return marker;
+    }
+
+    // --- 4) Kattintással extra waypoint ---
+    map.on('click', (e) => {
+        const marker = createWaypoint(e.latlng);
+        markers.push(marker);
+        drawRoute();
+    });
+
+    // --- 5) Útvonal lekérése OSRM-től ---
+    async function drawRoute() {
+        if (markers.length < 2 || !markers[0] || !markers[1]) return;
+
+        // Összegyűjtjük a waypointokat
+        const coords = markers
+            .map(m => m.getLatLng())
+            .map(p => `${p.lng},${p.lat}`)
+            .join(";");
+
+        const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.routes) return;
+
+        const route = data.routes[0];
+        const latlngs = route.geometry.coordinates.map(c => [c[1], c[0]]);
+
+        if (routeLine) map.removeLayer(routeLine);
+
+        routeLine = L.polyline(latlngs, {
+            color: "blue",
+            weight: 5
+        }).addTo(map);
+
+        map.fitBounds(routeLine.getBounds());
+
+        showInfo(route.distance, route.duration);
+    }
+
+    // --- 6) Infó kiírása ---
+    function showInfo(distance, duration) {
+        const km = (distance / 1000).toFixed(2);
+        const min = Math.round(duration / 60);
+
+        document.getElementById("info").innerHTML =
+            `<b>Útvonal hossza:</b> ${km} km • 
+             <b>Menetidő:</b> ${min} perc<br>
+             <small>Kattints a térképre waypoint hozzáadásához, vagy húzd a marker(eke)t.</small>`;
+    }
+</script>
+
+</body>
+</html>

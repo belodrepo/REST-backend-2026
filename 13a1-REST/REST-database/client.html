@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REST API - Felhasználói adatok kezelése</title>
+<style>
+    .center
+    {
+      width: 1000px;  
+      height: auto;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .users-table table,
+    .users-table th,
+    .users-table td
+    {
+        border: 1px solid black;
+        padding: 3px;
+        border-collapse: collapse;
+        
+    }
+</style>
+</head>
+
+<body>
+    <div class="center">
+    <h3>REST API - Felhasználói adatok kezelése</h3>
+    <form action="" id="userForm">
+        <p>
+            <input type="text" name="firstName" placeholder="firstName..." required>
+        </p>
+        <p>
+            <input type="text" name="lastName" placeholder="lastName..." required>
+        </p>
+        <p>
+            <input type="text" name="city" placeholder="city..." required>
+        </p>
+        <p>
+            <input type="text" name="address" placeholder="address..." required>
+        </p>
+        <p>
+            <input type="text" name="phone" placeholder="phone..." required>
+        </p>
+        <p>
+            <input type="text" name="email" placeholder="email..." required>
+        </p>
+        <p>
+            <select name="gender" id="gender" required>
+                <option value="0">Válassz nemet!</option>
+                <option value="férfi">Férfi</option>
+                <option value="nő">Nő</option>
+            </select>
+        </p>
+        <p>
+            <button type="submit">Elküld</button>
+        </p>
+    </form>
+    <div class="users-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>firstName</th>
+                    <th>lastName</th>
+                    <th>city</th>
+                    <th>address</th>
+                    <th>phone</th>
+                    <th>email</th>
+                    <th>gender</th>
+                    <th>actions</th>
+                </tr>
+            </thead>
+            <tbody id="usersData"><!--Ide jönnek a táblázat sorai--></tbody>
+        </table>
+    </div>
+</div>
+<script src="client.js"></script>
+</body>
+
+</html>

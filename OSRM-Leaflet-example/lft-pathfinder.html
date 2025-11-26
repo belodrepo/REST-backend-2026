@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <title>Egyszerű Leaflet útvonaltervező</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        #map { height: 100vh; }
+        .infoBox {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+<div class="infoBox">Kattints két pontra a térképen az útvonalhoz!</div>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // --- Térkép ---
+    const map = L.map('map').setView([47.4979, 19.0402], 13); // Budapest
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+    }).addTo(map);
+
+    let startMarker = null;
+    let endMarker = null;
+    let routeLine = null;
+
+    // --- Kattintás esemény ---
+    map.on('click', async (e) => {
+        if (!startMarker) {
+            startMarker = L.marker(e.latlng).addTo(map).bindPopup("Start").openPopup();
+        } else if (!endMarker) {
+            endMarker = L.marker(e.latlng).addTo(map).bindPopup("Cél").openPopup();
+            drawRoute();
+        } else {
+            // Újrakezdés
+            map.removeLayer(startMarker);
+            map.removeLayer(endMarker);
+            if (routeLine) map.removeLayer(routeLine);
+            startMarker = endMarker = routeLine = null;
+        }
+    });
+
+    // --- Útvonal lekérése az OSRM API-ból ---
+    async function drawRoute() {
+        const s = startMarker.getLatLng();
+        const e = endMarker.getLatLng();
+
+        const url = `https://router.project-osrm.org/route/v1/driving/${s.lng},${s.lat};${e.lng},${e.lat}?overview=full&geometries=geojson`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+
+        routeLine = L.polyline(coords, { color: 'blue', weight: 5 }).addTo(map);
+        map.fitBounds(routeLine.getBounds());
+    }
+</script>
+
+</body>
+</html>
